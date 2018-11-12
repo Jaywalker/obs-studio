@@ -138,13 +138,41 @@ void set_up_vertex_buffer(struct ft2_source *srcdata)
 		if (srcdata->text[i] == L' ')
 			space_pos = i;
 	next_char:;
-		glyph_index =
-			FT_Get_Char_Index(srcdata->font_face, srcdata->text[i]);
-		word_width += src_glyph->xadv;
+		glyph_index = FT_Get_Char_Index(srcdata->font_face,
+			srcdata->text[i]);
+		word_width += src_glyph->xadv + srcdata->additional_char_spacing;
 	eos_skip:;
 	}
 
 skip_word_wrap:;
+
+	// calculate lines width for alignment
+	len = wcslen(srcdata->text);
+	uint32_t current_line_width = 0;
+	uint32_t current_line_index = 0;
+	if (srcdata->custom_width < 100)
+		srcdata->max_line_width = 0;
+	else
+		srcdata->max_line_width = srcdata->custom_width;
+
+	for (uint32_t i = 0; i <= len; i++) {
+		if (srcdata->text[i] == L'\n' || i == len) {
+			if (current_line_width > srcdata->max_line_width)
+				srcdata->max_line_width = current_line_width;
+
+			if (current_line_index < max_aligned_lines) {
+				srcdata->lines_width[current_line_index] =
+					current_line_width;
+				current_line_index++;
+			}
+			current_line_width = 0;
+		} else {
+			glyph_index = FT_Get_Char_Index(srcdata->font_face,
+				srcdata->text[i]);
+			current_line_width += src_glyph->xadv + srcdata->additional_char_spacing;
+		}
+	}
+
 	fill_vertex_buffer(srcdata);
 	obs_leave_graphics();
 }
@@ -180,7 +208,7 @@ void fill_vertex_buffer(struct ft2_source *srcdata)
 			goto draw_glyph;
 		dx = 0;
 		i++;
-		dy += srcdata->max_h + 4;
+		dy += srcdata->max_h + 4 + srcdata->additional_line_spacing;
 		if (i == wcslen(srcdata->text))
 			goto skip_glyph;
 		if (srcdata->text[i] == L'\n')
@@ -198,9 +226,9 @@ void fill_vertex_buffer(struct ft2_source *srcdata)
 		if (srcdata->custom_width < 100)
 			goto skip_custom_width;
 
-		if (dx + src_glyph->xadv > srcdata->custom_width) {
+		if (dx + src_glyph->xadv + srcdata->additional_char_spacing > srcdata->custom_width) {
 			dx = 0;
-			dy += srcdata->max_h + 4;
+			dy += srcdata->max_h + 4 + srcdata->additional_line_spacing;
 		}
 
 	skip_custom_width:;
@@ -213,7 +241,7 @@ void fill_vertex_buffer(struct ft2_source *srcdata)
 			  src_glyph->u2, src_glyph->v2);
 		set_rect_colors2(col + (cur_glyph * 6), srcdata->color[0],
 				 srcdata->color[1]);
-		dx += src_glyph->xadv;
+		dx += src_glyph->xadv + srcdata->additional_char_spacing;
 		if (dy - (float)src_glyph->yoff + src_glyph->h > max_y)
 			max_y = dy - src_glyph->yoff + src_glyph->h;
 		cur_glyph++;

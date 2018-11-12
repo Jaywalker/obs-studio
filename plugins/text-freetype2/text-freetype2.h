@@ -43,6 +43,12 @@ struct ft2_source {
 	bool update_file;
 	uint64_t last_checked;
 
+	// in pixels
+	uint32_t lines_width[max_aligned_lines];
+	uint32_t max_line_width;
+
+	enum text_alignment alignment;
+	int32_t additional_char_spacing, additional_line_spacing;
 	uint32_t cx, cy, max_h, custom_width;
 	uint32_t texbuf_x, texbuf_y;
 	uint32_t color[2];
